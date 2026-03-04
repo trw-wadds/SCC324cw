@@ -25,19 +25,20 @@ import string
     For each instance of the word BOW, we create window of size WINDOW_SIZE around it. For each
     word in the window, once processed, check it against the word sets. The most frequent meaning
     in the window is its estimated meaning.
+
     This approach is limited primarily by the innately insufficient set sizes, due to the nature of
     a modern language such as English. For instance, wikipedia has 32 listings of BOW dissambiguations.
 
     A sample test case is provided in test_cases_task_1.txt
-
 """
 
-# Array of lists, containing: Associated word sets (0); meaning (1); current tally (2) 
+# Array of lists, containing: Associated stemmed word sets (0); meaning (1); current tally (2) 
 Associations = [[
     {
     "captain", "marina", "hull", "rudder", "ferri", "bridg", "cargo", "deck",
     "yacht", "harbor", "moor", "pier", "mast", "coast", "keel", "crew", "sail",
     "starboard", "buoy", "helm", "port", "anchor", "dock", "stern", "voyag", "tide",
+    "ocean", "sea",
     },
     "boat", 0],
 [
@@ -60,7 +61,7 @@ Associations = [[
     {
     "costum", "fashion", "decor", "accessori", "tie", "collar", "satin", "wrap",
     "gift", "dress", "hair", "blous", "shoelac", "lace", "ribbon", "wed", "clip",
-    "pink", "silk", "formal", "outfit", "neck", "packag", "headband",
+    "pink", "silk", "formal", "handsom", "outfit", "neck", "headband", "shirt",
     },
     "article of clothing", 0],
 ]
@@ -77,18 +78,20 @@ with open("test_cases_task_1.txt","r") as file:
         clean_line = line.translate(translator)
 
         split = clean_line.split(" ")
+        
+        # Iterate through words, make window around it if it is 'bow'
         for idx, target in enumerate(split):
             if target.lower() != "bow":
                 continue
 
-            window = split[max(0, idx-WINDOW_SIZE):min(idx+WINDOW_SIZE, len(split))] # Create window of size 5 (either side)
+            window = split[max(0, idx-WINDOW_SIZE):min(idx+WINDOW_SIZE, len(split))]
 
             # Check if each word in the window is contained in any of the word sets, increment tally if so
             for w in window:
                 for i in range(4):
                     if Stemmr.stem(w, to_lowercase=True) in Associations[i][0]:
                         Associations[i][2] += 1
-                        break # No duplicates in word sets, so we can stop when the word is found in one set
+                        break           # No duplicates in word sets, so we can stop when the word is found in one set
 
             tallies = [category[2] for category in Associations]
             m = max(tallies)
