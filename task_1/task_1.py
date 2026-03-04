@@ -1,39 +1,49 @@
 from nltk.stem import *
 import numpy as np
+import string
 
-""" Choose a polysemous word. Design and implement a simple rule-based algorithm to perform
-    word-sense disambiguation for this specific word. 
-    
-    Polysemous word: BOW
+""" Polysemous word: BOW
+
     Given meanings:
     
-    A part of a boat
-    Polite bending gesture
-    Ranged historical weapon
-    An article of clothing
+    a part of a boat;
+    polite bending gesture;
+    ranged historical weapon;
+    an article of clothing.
     
     Assumptions:
-    Input is grammatically correct English text
 
+    Input is grammatically correct English text;
+    Disambiguation only uses context from the same line
+                (ie. .txt files with only one word per line are unsuitable).
     
-    """
+    Approach:
 
-### RESET TALLIES TO 0
+    We use a rule-based approach, defining sets of colours pertaining to each possible meaning.
+    For each instance of the word BOW, we create window of size WINDOW_SIZE around it. For each
+    word in the window, once processed, check it against the word sets. The most frequent meaning
+    in the window is its estimated meaning.
+    This approach is limited primarily by the innately insufficient set sizes, due to the nature of
+    a modern language such as English. For instance, wikipedia has 32 listings of BOW dissambiguations.
 
+    A sample test case is provided in test_cases_task_1.txt
 
-# 
-# Array of Tuples, containing: Associated word sets (0); meaning (1); current tally (2) 
-Associations = [[{
+"""
+
+# Array of lists, containing: Associated word sets (0); meaning (1); current tally (2) 
+Associations = [[
+    {
     "captain", "marina", "hull", "rudder", "ferri", "bridg", "cargo", "deck",
     "yacht", "harbor", "moor", "pier", "mast", "coast", "keel", "crew", "sail",
     "starboard", "buoy", "helm", "port", "anchor", "dock", "stern", "voyag", "tide",
-    },"boat", 0],
+    },
+    "boat", 0],
 [
     {
-    "perform", "kneel", "stage", "polit", "queen", "respect", "greet", "princess",
-    "audienc", "present", "acknowledg", "conclud", "worship", "applaus", "custom",
-    "formal", "introduc", "tradit", "king", "templ", "ceremoni", "submiss", "gestur",
-    "gratitud", "honor", "princ", "apolog",
+    "perform", "kneel", "stage", "polit", "queen", "respect", "greet",
+    "audienc", "acknowledg", "conclud", "worship", "applaus", "custom",
+    "introduc", "tradit", "king", "templ", "ceremoni", "submiss",
+    "gratitud", "honor", "princ", "apolog", "gestur", "princess",
     },
     "gesture", 0],
 [ 
@@ -48,32 +58,48 @@ Associations = [[{
     {
     "costum", "fashion", "decor", "accessori", "tie", "collar", "satin", "wrap",
     "gift", "dress", "hair", "blous", "shoelac", "lace", "ribbon", "wed", "clip",
-    "pink", "present", "silk", "formal", "outfit", "neck", "packag", "headband",
+    "pink", "silk", "formal", "outfit", "neck", "packag", "headband",
     },
-    "article",0],
+    "article of clothing", 0],
 ]
+
+WINDOW_SIZE = 5
 
 Stemmr = PorterStemmer()
 
 with open("test_cases_task_1.txt","r") as file:
-    for line in file:
-        split = line.split(" ")
+    for line_idx, line in enumerate(file):
+
+        # Remove punctuation
+        translator = str.maketrans("", "", string.punctuation)
+        clean_line = line.translate(translator)
+
+        split = clean_line.split(" ")
         for idx, target in enumerate(split):
             if target.lower() != "bow":
                 continue
-            window = split[max(0, idx-5):min(idx+5, len(split))]
+
+            window = split[max(0, idx-WINDOW_SIZE):min(idx+WINDOW_SIZE, len(split))] # Create window of size 5 (either side)
+
+            # Check if each word in the window is contained in any of the word sets, increment tally if so
             for w in window:
-                if Stemmr.stem(w, to_lowercase=True) in Associations[0][0]:
-                    boatT+=1
-                elif Stemmr.stem(w, to_lowercase=True) in Associations[1][0]:
-                    ben_doverT+=1
-                elif Stemmr.stem(w, to_lowercase=True) in Associations[2][0]:
-                    weaponT+=1
-                elif Stemmr.stem(w, to_lowercase=True) in Associations[3][0]:
-                    articleT+=1
-                for i in Associations[:,2]:
-                    Associations[:,2][i] = 0
+                for i in range(4):
+                    if Stemmr.stem(w, to_lowercase=True) in Associations[i][0]:
+                        Associations[i][2] += 1
+                        break # No duplicates in word sets, so we can stop when the word is found in one set
 
-            print(f"word at index {idx} is likely to do with {Associations[:][1][np.argmax(Associations)]}")
+            tallies = [category[2] for category in Associations]
+            m = max(tallies)
 
-            
+            if m == 0:
+                result = "NONE"
+            elif tallies.count(m) > 1:
+                result = "AMBIGUOUS"
+            else:
+                result = Associations[np.argmax(tallies)][1]
+
+            print(f"The instance of bow at line {line_idx}, index {idx} likely pertains to subject: {result.upper()}")
+
+            # reset tallies after each window
+            for i in range(len(Associations)):
+                Associations[i][2] = 0
