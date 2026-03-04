@@ -2,7 +2,9 @@ from nltk.stem import *
 import numpy as np
 import string
 
-""" Polysemous word: BOW
+""" Word-Sense Disambiguation
+
+    Polysemous word: BOW
 
     Given meanings:
     
