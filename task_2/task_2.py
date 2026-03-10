@@ -36,7 +36,7 @@ high_punctuation_set = {                 # higher score than the below set
 }
 
 low_punctuation_set = {                  # baseline score of 1
-    "!", "?", "*", "#", "@", ".",
+    "!", "?", "*", "#", "@",
 }
 
 link_set = {                        # should only trigger as many times as there are links
@@ -55,23 +55,13 @@ mwp_set = {                         # this is the focus
     "you have been selected", "sign up", "claim your prize", "limited time offer",
     "act now", "winner announced", "get your free", "no credit check", "you won",
     "exclusive deal", "click here", "register now", "before its too late", "buy now",
-    "buy today", "apply now", "apply today", "act today", "action required",
+    "buy today", "apply now", "apply today", "act today", "action required", "brand new",
     "exclusive deal", "hurry up", "while supplies last", "free consultation", 
     "access your account", "payment details", "confidential information", "adult content",
+    "claim your reward", "cash in",
 }
 
 Stemmr = PorterStemmer()
-
-# TEMP FOR STEMMING WORD SET(S)
-# for w in word_set:
-#     new = Stemmr.stem(w, to_lowercase=True)
-#     print(f"{w} -> {new}")
-# for w in word_set:
-#     new = Stemmr.stem(w, to_lowercase=True)
-#     print(f"\"{new}\",", end=" ")
-
-# possible whitelist?????
-
 
 # SCORE VALUE PLACEHOLDER: XSCOREX
 
@@ -79,79 +69,8 @@ Stemmr = PorterStemmer()
 UPPER_THRESHOLD = 3.0                   # How much uppercase should reach before triggering
 
 # create reason list, score
-input = "FREE PALESTINE!"
+# TESTS
 
-reasons = []
-score = 0
-
-# check for uppercase
-# if excessive uppercase, make flag to check for individual uppercase false
-upper_count = 0
-for c in input:
-    if c.isupper():
-        upper_count += 1
-if upper_count >= len(input) / UPPER_THRESHOLD: # MAYBE MAKE VARIABLE ie PUNISH 100% MORE THAN 33%
-    score += 5 # XSCOREX
-    reasons.append("Excessive uppercase")
-
-# make all lowercase
-input_lower = input.lower()
-
-# check for weird punctuation
-for str in link_set:
-    if str in input_lower:
-        score += 5 # XSCOREX
-
-for c in input:
-    if c in high_punctuation_set:
-        score += 3 # XSCOREX
-        reasons.append(f"Unusual punctuation: {c}")
-    elif c in low_punctuation_set:
-        score += 1 # XSCOREX
-        reasons.append(f"Excessive punctuation: {c}")
-
-# Remove punctuation
-translator = str.maketrans("", "", string.punctuation)
-input, input_lower = input.translate(translator), input_lower.translate(translator)
-
-for mwp in mwp_set:
-    if mwp in input_lower:
-        score += 5 # XSCOREX
-        reasons.append(f"Key MWP detected: {mwp}")
-    # Additionally, add further points if fully capitalised
-    if mwp.upper() in input:
-        score += 5 # XSCOREX
-        reasons[-1] += " (UPPERCASE)"
-
-split, split_lower = input.split(" "), input_lower.split(" ")
-
-for w in split:
-    if Stemmr.stem(w, to_lowercase=True) in word_set:
-        score += 3
-        reasons.append(f"Keyword detected: {w.lower()}")
-        if w.isupper():
-            score += 2
-            reasons[-1] += " (UPPERCASE)"
-
-# normalise
-denom = np.sqrt(max(len(split), 3))
-normalised_score = score / denom
-
-# output
-if normalised_score >= 1.5:
-    print(f"The input has been flagged as spam with score: {normalised_score}. Reasons: {reasons}")
-else:
-    print(f"The input is likely not spam.")
-
-
-# TESTING
-
-
-
-
-""" possible test cases:
-    FREE PALESTINE!
-"""
 test_sentences = [
     # Obvious spam
     "FREE PALESTINE!",
@@ -174,7 +93,7 @@ test_sentences = [
     # Borderline / suspicious spam
     "This is your final chance to act today.",
     "Hurry up, while supplies last!",
-    "You won’t believe this amazing bargain.",
+    "You won't believe this amazing bargain.",
     "Earn money quickly and risk-free.",
     "Download this free trial now!",
     "Exclusive bonus available if you apply today.",
@@ -203,3 +122,90 @@ test_sentences = [
     "Congratulations on your promotion!",
     "Act now to save on your taxes!"  # borderline spam
 ]
+
+for input in test_sentences:
+
+    # input = "YOU HAVE BEEN SELECTED to claim your prize!"
+
+    reasons = []
+    score = 0
+
+    # check for uppercase
+    # if excessive uppercase, make flag to check for individual uppercase false
+    upper_count = 0
+    for c in input:
+        if c.isupper():
+            upper_count += 1
+    if upper_count >= len(input) / UPPER_THRESHOLD: # MAYBE MAKE VARIABLE ie PUNISH 100% MORE THAN 33%
+        score += 5 # XSCOREX
+        reasons.append("Excessive uppercase")
+
+    # make all lowercase
+    input_lower = input.lower()
+
+    # check for weird punctuation
+    for str in link_set:                                                    # TODO: CHANGE TO REGEX
+        if str in input_lower:
+            score += 5 # XSCOREX
+            reasons.append("Link detected")
+
+    low_punc_count = 0
+    for c in input:
+        if c in high_punctuation_set:
+            score += 3 # XSCOREX
+            reasons.append(f"Unusual punctuation: {c}")
+        elif c in low_punctuation_set:
+            low_punc_count += 1 # XSCOREX
+    if low_punc_count >= 3: # MAYBE NORMALISE BY SENTENCE LENGTH???????
+        score += 3
+        reasons.append(f"Excessive punctuation")
+
+    # Remove punctuation
+    translator = str.maketrans("", "", string.punctuation)
+    input, input_lower = input.translate(translator), input_lower.translate(translator)
+    input, input_lower = " " + input + " ", " " + input_lower + " "
+
+    for mwp in mwp_set:
+        if f" {mwp} " in input_lower:
+            score += 5 # XSCOREX
+            reasons.append(f"Key MWP detected: {mwp}")
+        # Additionally, add further points if fully capitalised
+        if mwp.upper() in input:
+            score += 5 # XSCOREX
+            reasons[-1] += " (UPPERCASE)"
+
+    split, split_lower = input.split(" "), input_lower.split(" ")
+
+    for w in split:
+        if Stemmr.stem(w, to_lowercase=True) in word_set:
+            score += 3
+            reasons.append(f"Keyword detected: {w.lower()}")
+            if w.isupper():
+                score += 2
+                reasons[-1] += " (UPPERCASE)"
+
+    # normalise
+    denom = np.sqrt(max(len(split), 3))
+    normalised_score = score / denom
+
+    # output
+    # if normalised_score >= 3:
+    #     print(f"The input has been flagged as spam with score: {normalised_score}. Reasons: {reasons}")
+    # else:
+    #     print(f"The input is likely not spam.")
+
+    # TEST output
+    if normalised_score >= 3:
+        print(f"{input} -> SPAM\t\t {', '.join(reasons)}\n")
+    else:
+        print(f"{input} -> NOT SPAM\n")
+
+
+# TESTING
+
+
+
+
+""" possible test cases:
+    FREE PALESTINE!
+"""
